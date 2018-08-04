@@ -1,0 +1,1 @@
+Base project for playing with neo4j, either embedded or via driver.
