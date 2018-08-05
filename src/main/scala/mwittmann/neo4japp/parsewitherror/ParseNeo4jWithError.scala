@@ -170,46 +170,20 @@ object ParseNeo4j {
 
     val workflowInstanceNode: Result[WrappedNode] = result.getNode("workflowInstance")
 
-    val inputParts =
-      for {
-        inputMolecules <- result.getMolecules("inputs")
+    val inputParts = for {
+      inputMolecules <- result.getMolecules("inputs")
 
-        inputParts <- {
-          val x: List[Result[(WrappedNode, WrappedNode, WrappedNode)]] =
-            inputMolecules.map { molecule =>
-              for {
-                inputParts <- molecule.asMolecules
-                artifactDefnNode <- inputParts(0).asNode
-                artifactNode <- inputParts(1).asNode
-                fileDataNode <- inputParts(2).asNode
-              } yield (artifactDefnNode, artifactNode, fileDataNode)
-            }
-
-          val y: Result[List[(WrappedNode, WrappedNode, WrappedNode)]] = x.sequence
-
-          y
-        }
-
-//          val artifactDefnNode = inputParts(0).asNode
-//          val artifactNode = inputParts(1).asNode
-//          val fileDataNode = inputParts(2).asNode
-//
-//          (artifactDefnNode, artifactNode, fileDataNode)
-//        }
-      } yield inputParts
-
-//    val inputMolecules: Result[List[WrappedMolecule]] = result.getMolecules("inputs")
-
-
-
-//    val inputParts: List[(WrappedNode, WrappedNode, WrappedNode)] = inputMolecules.map { molecule =>
-//      val inputParts = molecule.asMolecules
-//      val artifactDefnNode = inputParts(0).asNode
-//      val artifactNode = inputParts(1).asNode
-//      val fileDataNode = inputParts(2).asNode
-//
-//      (artifactDefnNode, artifactNode, fileDataNode)
-//    }
+      inputParts <- {
+        inputMolecules.map { molecule =>
+          for {
+            inputParts <- molecule.asMolecules
+            artifactDefnNode <- inputParts(0).asNode
+            artifactNode <- inputParts(1).asNode
+            fileDataNode <- inputParts(2).asNode
+          } yield (artifactDefnNode, artifactNode, fileDataNode)
+        }.sequence
+      }
+    } yield inputParts
   }
 
   type NodeParser[S] = WrappedNode => Result[S]
@@ -218,8 +192,7 @@ object ParseNeo4j {
   type RecordParser[S] = WrappedRecord => Result[S]
 
   //type NARParser[S] = NotARecord => S
-
-
+  
   case class Artifact(uid: UUID, blobUid: UUID)
 
   trait ArtifactDefn
@@ -235,6 +208,7 @@ object ParseNeo4j {
   }
 
   val artifactParser: NodeParser[ArtifactDefn] = ???
+
   val fileData: NodeParser[FileData] = ???
 
   implicit def moleculeFromNode[S](np: NodeParser[S]): MoleculeParser[S] = { molecule =>
@@ -251,8 +225,6 @@ object ParseNeo4j {
       Right(None)
   }
 
-
-//  def three[S, T, U](s: NodeParser[])
   def three[S, T, U](
     s: MoleculeParser[S],
     t: MoleculeParser[T],
@@ -268,6 +240,5 @@ object ParseNeo4j {
 
   val inputsParser: MoleculeParser[(Artifact, ArtifactDefn, Option[FileData])] =
     three(artifactDefnParser, artifactParser, optional(fileData))
-
 
 }
