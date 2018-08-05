@@ -77,7 +77,7 @@ class ParseN4jSpec extends Specification {
       println(r)
 
       r should beLeft
-      r.left.get._1 mustEqual("Wasn't an int: \"a\"")
+      r.left.get._1 mustEqual "Wasn't an int: \"a\""
     }
 
   }
