@@ -2,11 +2,23 @@ package mwittmann.neo4japp.parsewitherror
 
 import java.util.UUID
 import scala.collection.JavaConverters._
+import cats.syntax._
+import cats.implicits._
 
-import mwittmann.neo4japp.parse._
+import mwittmann.neo4japp.parsewitherror.N4j._
 import org.neo4j.driver.v1.types.Node
 import org.neo4j.driver.v1.{Record, Value}
 
+object N4j {
+  type Result[S] = Either[(String, Option[Exception]), S]
+
+  def tryCatch[S](fn: => S, error: String): Result[S] =
+    try {
+      Right(fn)
+    } catch {
+      case e: Exception => Left((error, Some(e)))
+    }
+}
 
 sealed trait N4j
 //sealed trait NotARecord extends N4j
@@ -14,76 +26,139 @@ sealed trait N4j
 
 
 sealed trait WrappedRecord extends N4j {
-  def getNode(name: String): WrappedNode
-  def getNodes(name: String): List[WrappedNode]
+  def getNode(name: String): Result[WrappedNode]
+  def getNodes(name: String): Result[List[WrappedNode]]
 
-  def getAtom(name: String): WrappedAtom
-  def getAtoms(name: String): List[WrappedAtom]
+  def getAtom(name: String): Result[WrappedAtom]
+  def getAtoms(name: String): Result[List[WrappedAtom]]
 
-  def getMolecule(name: String): WrappedMolecule
-  def getMolecules(name: String): List[WrappedMolecule]
+  def getMolecule(name: String): Result[WrappedMolecule]
+  def getMolecules(name: String): Result[List[WrappedMolecule]]
 }
 
 case class WrappedRecordImpl(record: Record) extends WrappedRecord {
-  override def getNode(name: String): WrappedNode = WrappedNodeImpl(record.get(name).asNode())
-  override def getNodes(name: String): List[WrappedNode] =
-    record.get(name).asList(_.asNode()).asScala.map(WrappedNodeImpl).toList
+  override def getNode(name: String): Result[WrappedNode] =
+    tryCatch(WrappedNodeImpl(record.get(name).asNode()), s"${record}.get($name) wasn't a node")
 
-  override def getAtom(name: String): WrappedAtom = WrappedAtomImpl(record.get(name))
-  override def getAtoms(name: String): List[WrappedAtom] =
-    record.get(name).asList(i => i).asScala.map(WrappedAtomImpl).toList
+  override def getNodes(name: String): Result[List[WrappedNode]] =
+    tryCatch(
+      record.get(name).asList(_.asNode()).asScala.map(WrappedNodeImpl).toList,
+      s"${record}.get($name) wasn't a node list"
+    )
 
-  override def getMolecule(name: String): WrappedMolecule = WrappedMoleculeImpl(record.get(name))
-  override def getMolecules(name: String): List[WrappedMolecule] =
-    record.get(name).asList(i => i).asScala.map(WrappedMoleculeImpl).toList
+  override def getAtom(name: String): Result[WrappedAtom] =
+    tryCatch(
+      WrappedAtomImpl(record.get(name)),
+      s"${record}.get($name) didn't exist"
+    )
+
+  override def getAtoms(name: String): Result[List[WrappedAtom]] =
+    tryCatch(
+      record.get(name).asList(i => i).asScala.map(WrappedAtomImpl).toList,
+      s"${record}.get($name) wasn't an atom list"
+    )
+
+  override def getMolecule(name: String): Result[WrappedMolecule] =
+    tryCatch(
+      WrappedMoleculeImpl(record.get(name)),
+      s"${record}.get($name) wasn't a molecule"
+    )
+
+  override def getMolecules(name: String): Result[List[WrappedMolecule]] =
+    tryCatch(
+      record.get(name).asList(i => i).asScala.map(WrappedMoleculeImpl).toList,
+      s"${record}.get($name) wasn't a molecule"
+    )
+
+  //    record.get(name).asList(i => i).asScala.map(WrappedMoleculeImpl).toList
 }
 
 sealed trait WrappedNode extends N4j {
-  def getAtom(name: String): WrappedAtom
-  def getAtoms(name: String): List[WrappedAtom]
+  def getAtom(name: String): Result[WrappedAtom]
+  def getAtoms(name: String): Result[List[WrappedAtom]]
 }
 
 case class WrappedNodeImpl(node: Node) extends WrappedNode {
-  override def getAtom(name: String): WrappedAtom = WrappedAtomImpl(node.get(name))
-  override def getAtoms(name: String): List[WrappedAtom] =
-    node.get(name).asList(v => v).asScala.map(WrappedAtomImpl).toList
+  override def getAtom(name: String): Result[WrappedAtom] =
+    tryCatch(
+      WrappedAtomImpl(node.get(name)),
+      s"${node}.get($name) wasn't a molecule"
+    )
+
+  override def getAtoms(name: String): Result[List[WrappedAtom]] =
+    tryCatch(
+      node.get(name).asList(v => v).asScala.map(WrappedAtomImpl).toList,
+      s"${node}.get($name) wasn't a molecule"
+    )
 }
 
 sealed trait WrappedMolecule extends N4j {
   def nonNull: Boolean
 
-  def asNode: WrappedNode
-  def asNodes: List[WrappedNode]
+  def asNode: Result[WrappedNode]
+  def asNodes: Result[List[WrappedNode]]
 
-  def asAtom: WrappedAtom
-  def asAtoms: List[WrappedAtom]
+  def asAtom: Result[WrappedAtom]
+  def asAtoms: Result[List[WrappedAtom]]
 
-  def asMolecules: List[WrappedMolecule]
+  def asMolecules: Result[List[WrappedMolecule]]
 }
 
 case class WrappedMoleculeImpl(value: Value) extends WrappedMolecule {
-  override def asNode: WrappedNode = WrappedNodeImpl(value.asNode())
-  override def asNodes: List[WrappedNode] = value.asList(_.asNode()).asScala.toList.map(WrappedNodeImpl)
+  override def asNode: Result[WrappedNode] =
+    tryCatch(
+      WrappedNodeImpl(value.asNode()),
+      s"$value not a ???"
+    )
 
-  override def asAtom: WrappedAtom = WrappedAtomImpl(value)
-  override def asAtoms: List[WrappedAtom] = value.asList(v => v).asScala.toList.map(WrappedAtomImpl)
+  override def asNodes: Result[List[WrappedNode]] =
+    tryCatch(
+      value.asList(_.asNode()).asScala.toList.map(WrappedNodeImpl),
+      s"$value not a ???"
+    )
 
-  override def asMolecules: List[WrappedMolecule] = value.asList(v => v).asScala.toList.map(WrappedMoleculeImpl)
+  override def asAtom: Result[WrappedAtom] =
+    tryCatch(
+      WrappedAtomImpl(value),
+      s"$value not a ???"
+    )
+
+  override def asAtoms: Result[List[WrappedAtom]] =
+    tryCatch(
+      value.asList(v => v).asScala.toList.map(WrappedAtomImpl),
+      s"$value not a ???"
+    )
+
+  override def asMolecules: Result[List[WrappedMolecule]] =
+    tryCatch(
+      value.asList(v => v).asScala.toList.map(WrappedMoleculeImpl),
+      s"$value not a ???"
+    )
 
   override def nonNull: Boolean = !value.isNull
 }
 
 sealed trait WrappedAtom extends N4j {
-  def asUid: UUID = UUID.fromString(asString)
-  def asLong: Long
-  def asString: String
+  def asUid: Result[UUID] =
+    asString.map(UUID.fromString)
+
+  def asLong: Result[Long]
+  def asString: Result[String]
   // asFoo: Foo
 }
 
 case class WrappedAtomImpl(value: Value) extends WrappedAtom {
-  override def asLong: Long = value.asLong()
+  override def asLong: Result[Long] =
+    tryCatch(
+      value.asLong(),
+      s"$value not a ???"
+    )
 
-  override def asString: String = value.asString()
+  override def asString: Result[String] =
+    tryCatch(
+      value.asString(),
+      s"$value not a ???"
+    )
 }
 
 
@@ -93,23 +168,54 @@ object ParseNeo4j {
 
     val result: WrappedRecord = ???
 
-    val workflowInstanceNode: WrappedNode = result.getNode("workflowInstance")
+    val workflowInstanceNode: Result[WrappedNode] = result.getNode("workflowInstance")
 
-    val inputMolecules: List[WrappedMolecule] = result.getMolecules("inputs")
-    val inputParts: List[(WrappedNode, WrappedNode, WrappedNode)] = inputMolecules.map { molecule =>
-      val inputParts = molecule.asMolecules
-      val artifactDefnNode = inputParts(0).asNode
-      val artifactNode = inputParts(1).asNode
-      val fileDataNode = inputParts(2).asNode
+    val inputParts =
+      for {
+        inputMolecules <- result.getMolecules("inputs")
 
-      (artifactDefnNode, artifactNode, fileDataNode)
-    }
+        inputParts <- {
+          val x: List[Result[(WrappedNode, WrappedNode, WrappedNode)]] =
+            inputMolecules.map { molecule =>
+              for {
+                inputParts <- molecule.asMolecules
+                artifactDefnNode <- inputParts(0).asNode
+                artifactNode <- inputParts(1).asNode
+                fileDataNode <- inputParts(2).asNode
+              } yield (artifactDefnNode, artifactNode, fileDataNode)
+            }
+
+          val y: Result[List[(WrappedNode, WrappedNode, WrappedNode)]] = x.sequence
+
+          y
+        }
+
+//          val artifactDefnNode = inputParts(0).asNode
+//          val artifactNode = inputParts(1).asNode
+//          val fileDataNode = inputParts(2).asNode
+//
+//          (artifactDefnNode, artifactNode, fileDataNode)
+//        }
+      } yield inputParts
+
+//    val inputMolecules: Result[List[WrappedMolecule]] = result.getMolecules("inputs")
+
+
+
+//    val inputParts: List[(WrappedNode, WrappedNode, WrappedNode)] = inputMolecules.map { molecule =>
+//      val inputParts = molecule.asMolecules
+//      val artifactDefnNode = inputParts(0).asNode
+//      val artifactNode = inputParts(1).asNode
+//      val fileDataNode = inputParts(2).asNode
+//
+//      (artifactDefnNode, artifactNode, fileDataNode)
+//    }
   }
 
-  type NodeParser[S] = WrappedNode => S
-  type AtomParser[S] = WrappedAtom => S
-  type MoleculeParser[S] = WrappedMolecule => S
-  type RecordParser[S] = WrappedRecord => S
+  type NodeParser[S] = WrappedNode => Result[S]
+  type AtomParser[S] = WrappedAtom => Result[S]
+  type MoleculeParser[S] = WrappedMolecule => Result[S]
+  type RecordParser[S] = WrappedRecord => Result[S]
 
   //type NARParser[S] = NotARecord => S
 
@@ -119,35 +225,45 @@ object ParseNeo4j {
   trait ArtifactDefn
   trait FileData
   val artifactDefnParser: NodeParser[Artifact] = { node =>
-    Artifact(
-      node.getAtom("uid").asUid,
-      node.getAtom("blobUid").asUid
-    )
+    for {
+      uidAtom <- node.getAtom("uid")
+      uid     <-  uidAtom.asUid
+
+      blobUidAtom <- node.getAtom("blobUid")
+      blobUid <-  blobUidAtom.asUid
+    } yield Artifact(uid, blobUid)
   }
 
   val artifactParser: NodeParser[ArtifactDefn] = ???
   val fileData: NodeParser[FileData] = ???
 
   implicit def moleculeFromNode[S](np: NodeParser[S]): MoleculeParser[S] = { molecule =>
-    np(molecule.asNode)
+    for {
+      n <- molecule.asNode
+      n2 <- np(n)
+    } yield n2
   }
 
   def optional[S](s: MoleculeParser[S]): MoleculeParser[Option[S]] = { molecule =>
     if (molecule.nonNull)
-      Some(s(molecule))
+      s(molecule).map((v: S) => Some(v))
     else
-      None
+      Right(None)
   }
 
 
 //  def three[S, T, U](s: NodeParser[])
-  def three[S, T, U](s: MoleculeParser[S], t: MoleculeParser[T], u: MoleculeParser[U]): MoleculeParser[(S, T, U)] = { molecule =>
-    val items = molecule.asMolecules
-    (
-      s(items(0)),
-      t(items(1)),
-      u(items(2))
-    )
+  def three[S, T, U](
+    s: MoleculeParser[S],
+    t: MoleculeParser[T],
+    u: MoleculeParser[U]
+  ): MoleculeParser[(S, T, U)] = { molecule =>
+    for {
+      items <- molecule.asMolecules
+      si <- s(items(0))
+      ti <- t(items(1))
+      ui <- u(items(2))
+    } yield (si, ti, ui)
   }
 
   val inputsParser: MoleculeParser[(Artifact, ArtifactDefn, Option[FileData])] =
