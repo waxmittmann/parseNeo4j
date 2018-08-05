@@ -2,12 +2,13 @@ package mwittmann.neo4japp.parsewitherror
 
 import java.util.UUID
 import scala.collection.JavaConverters._
+
 import cats.syntax._
 import cats.implicits._
-
-import mwittmann.neo4japp.parsewitherror.N4j._
 import org.neo4j.driver.v1.types.Node
 import org.neo4j.driver.v1.{Record, Value}
+
+import mwittmann.neo4japp.parsewitherror.N4j._
 
 object N4j {
   type Result[S] = Either[(String, Option[Exception]), S]
@@ -21,9 +22,6 @@ object N4j {
 }
 
 sealed trait N4j
-//sealed trait NotARecord extends N4j
-
-
 
 sealed trait WrappedRecord extends N4j {
   def getNode(name: String): Result[WrappedNode]
@@ -191,8 +189,6 @@ object ParseNeo4j {
   type MoleculeParser[S] = WrappedMolecule => Result[S]
   type RecordParser[S] = WrappedRecord => Result[S]
 
-  //type NARParser[S] = NotARecord => S
-  
   case class Artifact(uid: UUID, blobUid: UUID)
 
   trait ArtifactDefn
@@ -224,6 +220,18 @@ object ParseNeo4j {
     else
       Right(None)
   }
+
+  def two[S, T](
+    s: MoleculeParser[S],
+    t: MoleculeParser[T]
+  ): MoleculeParser[(S, T)] = { molecule =>
+    for {
+      items <- molecule.asMolecules
+      si <- s(items(0))
+      ti <- t(items(1))
+    } yield (si, ti)
+  }
+
 
   def three[S, T, U](
     s: MoleculeParser[S],
