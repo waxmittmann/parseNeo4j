@@ -7,26 +7,28 @@ import org.neo4j.driver.v1.Value
 
 import mwittmann.neo4japp.parsewitherror.ParseN4j.{AtomParser, tryCatch}
 
-object AtomParsers {
-  implicit val parseLong: AtomParser[Long] = (wa: WrappedAtom) => {
-    tryCatch(wa.value.asLong(), s"Wasn't a long: ${wa.value}")
-  }
+object WrappedAtomImpl {
+  object Implicits {
+    implicit val parseLong: AtomParser[Long] = (wa: WrappedAtom) => {
+      tryCatch(wa.value.asLong(), s"Wasn't a long: ${wa.value}")
+    }
 
-  implicit val parseInt: AtomParser[Int] = (wa: WrappedAtom) => {
-    tryCatch(wa.value.asInt(), s"Wasn't a long: ${wa.value}")
-  }
+    implicit val parseInt: AtomParser[Int] = (wa: WrappedAtom) => {
+      tryCatch(wa.value.asInt(), s"Wasn't a long: ${wa.value}")
+    }
 
-  implicit val parseString: AtomParser[String] = (wa: WrappedAtom) => {
-    tryCatch(wa.value.asString(), s"Wasn't a long: ${wa.value}")
-  }
+    implicit val parseString: AtomParser[String] = (wa: WrappedAtom) => {
+      tryCatch(wa.value.asString(), s"Wasn't a long: ${wa.value}")
+    }
 
-  implicit val parseBoolean: AtomParser[Boolean] = (wa: WrappedAtom) => {
-    tryCatch(wa.value.asBoolean(), s"Wasn't a long: ${wa.value}")
-  }
+    implicit val parseBoolean: AtomParser[Boolean] = (wa: WrappedAtom) => {
+      tryCatch(wa.value.asBoolean(), s"Wasn't a long: ${wa.value}")
+    }
 
-  implicit val parseUuid: AtomParser[UUID] = (wa: WrappedAtom) => {
-    parseString(wa).right.flatMap { s =>
-      tryCatch(UUID.fromString(s), s"Wasn't a uuid: ${wa.value}")
+    implicit val parseUuid: AtomParser[UUID] = (wa: WrappedAtom) => {
+      parseString(wa).right.flatMap { s =>
+        tryCatch(UUID.fromString(s), s"Wasn't a uuid: ${wa.value}")
+      }
     }
   }
 }

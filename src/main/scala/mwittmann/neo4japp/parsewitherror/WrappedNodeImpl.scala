@@ -14,7 +14,7 @@ case class WrappedNodeImpl(node: Node) extends WrappedNode {
 
   override def getAtoms(name: String): Result[List[WrappedAtom]] =
     tryCatch(
-      node.get(name).asList(v => v).asScala.map(WrappedAtomImpl).toList,
+      node.get(name).asList(v => v).asScala.map(WrappedAtomImpl.apply).toList,
       s"${node}.get($name) wasn't a molecule"
     )
 }

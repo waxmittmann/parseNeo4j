@@ -14,7 +14,7 @@ case class WrappedMoleculeImpl(value: Value) extends WrappedMolecule {
 
   override def asNodes: Result[List[WrappedNode]] =
     tryCatch(
-      value.asList(_.asNode()).asScala.toList.map(WrappedNodeImpl),
+      value.asList(_.asNode()).asScala.toList.map(WrappedNodeImpl.apply),
       s"$value not a ???"
     )
 
@@ -26,7 +26,7 @@ case class WrappedMoleculeImpl(value: Value) extends WrappedMolecule {
 
   override def asAtoms: Result[List[WrappedAtom]] =
     tryCatch(
-      value.asList(v => v).asScala.toList.map(WrappedAtomImpl),
+      value.asList(v => v).asScala.toList.map(WrappedAtomImpl.apply),
       s"$value not a ???"
     )
 

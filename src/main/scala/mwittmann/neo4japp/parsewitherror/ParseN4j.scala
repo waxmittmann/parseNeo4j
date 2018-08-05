@@ -49,6 +49,11 @@ object ParseN4j {
   ): MoleculeParser[(S, T)] = { molecule =>
     for {
       items <- molecule.asMolecules
+      _ <-
+        if (items.size < 2) Left("Fewer than 2 items", None)
+        else if (items.size > 2) Left(("More than 2 items", None))
+        else Right(())
+
       si <- s(items(0))
       ti <- t(items(1))
     } yield (si, ti)
@@ -62,6 +67,11 @@ object ParseN4j {
   ): MoleculeParser[(S, T, U)] = { molecule =>
     for {
       items <- molecule.asMolecules
+      _ <-
+        if (items.size < 3) Left("Fewer than 3 items", None)
+        else if (items.size > 3) Left(("More than 3 items", None))
+        else Right(())
+
       si <- s(items(0))
       ti <- t(items(1))
       ui <- u(items(2))

@@ -2,8 +2,9 @@ package mwittmann.neo4japp.parsewitherror
 
 import scala.collection.JavaConverters._
 
-import mwittmann.neo4japp.parsewitherror.ParseN4j.{Result, tryCatch}
 import org.neo4j.driver.v1.Record
+
+import mwittmann.neo4japp.parsewitherror.ParseN4j.{Result, tryCatch}
 
 case class WrappedRecordImpl(record: Record) extends WrappedRecord {
   override def getNode(name: String): Result[WrappedNode] =
@@ -23,7 +24,7 @@ case class WrappedRecordImpl(record: Record) extends WrappedRecord {
 
   override def getAtoms(name: String): Result[List[WrappedAtom]] =
     tryCatch(
-      record.get(name).asList(i => i).asScala.map(WrappedAtomImpl).toList,
+      record.get(name).asList(i => i).asScala.map(WrappedAtomImpl.apply).toList,
       s"${record}.get($name) wasn't an atom list"
     )
 

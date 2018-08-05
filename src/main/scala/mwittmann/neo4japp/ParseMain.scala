@@ -1,14 +1,13 @@
 package mwittmann.neo4japp
 
 import java.util.UUID
-import scala.collection.immutable
 
 import cats.syntax._
 import cats.implicits._
 
 import mwittmann.neo4japp.parsewitherror.ParseN4j.{MoleculeParser, NodeParser, Result, optional, three}
 import mwittmann.neo4japp.parsewitherror.{WrappedNode, WrappedRecord}
-import mwittmann.neo4japp.parsewitherror.AtomParsers._
+import mwittmann.neo4japp.parsewitherror.WrappedAtomImpl.Implicits._
 
 object ParseMain {
 
@@ -51,7 +50,6 @@ object ParseMain {
   val artifactParser: NodeParser[ArtifactDefn] = ???
 
   val fileData: NodeParser[FileData] = ???
-
 
   val inputsParser: MoleculeParser[(Artifact, ArtifactDefn, Option[FileData])] =
     three(artifactDefnParser, artifactParser, optional(fileData))
