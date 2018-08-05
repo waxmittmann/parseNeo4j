@@ -3,13 +3,13 @@ package mwittmann.neo4japp.db
 import cats.effect.IO
 import org.neo4j.driver.v1._
 
-trait Neo4jClient[T] {
+trait Neo4jDriverClient[T] {
   def tx[S](work: T => IO[S]): IO[S]
 
   def readTx[S](work: T => IO[S]): IO[S]
 }
 
-class WrappedDriver(url: String, user: String, password: String) extends Neo4jClient[Transaction] {
+class WrappedDriver(url: String, user: String, password: String) extends Neo4jDriverClient[Transaction] {
 
   private val token: AuthToken = AuthTokens.basic(user, password)
 
