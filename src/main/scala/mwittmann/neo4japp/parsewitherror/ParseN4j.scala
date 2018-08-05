@@ -6,7 +6,7 @@ import scala.collection.JavaConverters._
 import cats.syntax._
 import cats.implicits._
 import mwittmann.neo4japp.parsewitherror.ParseN4j._
-import org.neo4j.driver.v1.Value
+import org.neo4j.driver.v1.{Record, Value}
 
 object ParseN4j {
   // Result type for parse
@@ -17,6 +17,13 @@ object ParseN4j {
   type AtomParser[S] = WrappedAtom => Result[S]
   type MoleculeParser[S] = WrappedMolecule => Result[S]
   type RecordParser[S] = WrappedRecord => Result[S]
+
+  implicit class NodeGetDirect(wn: WrappedNode) {
+    def get[S](field: String)(implicit atomParser: AtomParser[S]): Result[S] = for {
+      atom <- wn.getAtom(field)
+      value <- atomParser(atom)
+    } yield value
+  }
 
   // Util for implementations to catch neo4j conversion errors
   def tryCatch[S](fn: => S, error: String): Result[S] =
@@ -76,6 +83,25 @@ object ParseN4j {
       ti <- t(items(1))
       ui <- u(items(2))
     } yield (si, ti, ui)
+  }
+
+
+
+  def parseRecords[S](alias: String, parser: NodeParser[S]): List[Record] => Result[List[S]] = { (records: List[Record]) =>
+    val p: RecordParser[S] = parseNodeList(alias, parser)
+    records.map(r => p(WrappedRecordImpl(r))).sequence[Result, S]
+  }
+
+  // Make a record parser from node parser
+//  def parseNodeList[S](alias: String, parser: NodeParser[S]): RecordParser[List[S]] = { record =>
+  def parseNodeList[S](alias: String, parser: NodeParser[S]): RecordParser[S] = { record =>
+    for {
+//      nodes <- record.getNodes(alias)
+      nodes <- record.getNode(alias)
+//      result <- nodes.map(parser).sequence[Result, S]
+      result <- parser(nodes)
+    } yield result
+    ///record.getNodes(alias).flatMap().sequence[Result, WrappedNode]
   }
 }
 

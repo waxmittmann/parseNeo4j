@@ -1,12 +1,19 @@
 package mwittmann.neo4japp.db
 
 import cats.effect.IO
+import scala.collection.JavaConverters._
 import org.neo4j.driver.v1._
 
 trait Neo4jDriverClient[T] {
   def tx[S](work: T => IO[S]): IO[S]
 
   def readTx[S](work: T => IO[S]): IO[S]
+
+  def unsafeTx[S](work: T => S): S
+}
+
+object WrappedDriver {
+  def local: WrappedDriver = new WrappedDriver("bolt://127.0.0.1/", "neo4j", "test")
 }
 
 class WrappedDriver(url: String, user: String, password: String) extends Neo4jDriverClient[Transaction] {
@@ -33,6 +40,28 @@ class WrappedDriver(url: String, user: String, password: String) extends Neo4jDr
 
   // Todo: Use readonly transaction
   override def readTx[S](work: Transaction => IO[S]): IO[S] = tx(work)
+
+  def unsafeStatement(s: String, p: Map[String, AnyRef] = Map.empty): StatementResult =
+    unsafeTx { _.run(s, p.asJava) }
+
+  def unsafeTx[S](work: Transaction => S): S = {
+    val session = driver.session()
+    val tx: Transaction = session.beginTransaction()
+
+    try {
+      val r = work(tx)
+      tx.success()
+      r
+    } catch {
+      case e: Exception => {
+        tx.failure()
+        throw e
+      }
+    } finally {
+      tx.close()
+      session.close()
+    }
+  }
 
   def close(): Unit = driver.close()
 }
