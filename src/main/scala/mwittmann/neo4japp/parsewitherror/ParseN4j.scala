@@ -5,10 +5,10 @@ import scala.collection.JavaConverters._
 
 import cats.syntax._
 import cats.implicits._
+import mwittmann.neo4japp.parsewitherror.ParseN4j._
+import org.neo4j.driver.v1.Value
 
-import mwittmann.neo4japp.parsewitherror.N4j._
-
-object N4j {
+object ParseN4j {
   // Result type for parse
   type Result[S] = Either[(String, Option[Exception]), S]
 
@@ -69,10 +69,10 @@ object N4j {
   }
 }
 
-sealed trait N4j
+sealed trait ParseN4j
 
 // A wrapped Record, which may contain WrappedNode(s), WrappedMolecule(s) or WrappedAtom(s)
-trait WrappedRecord extends N4j {
+trait WrappedRecord extends ParseN4j {
   def getNode(name: String): Result[WrappedNode]
   def getNodes(name: String): Result[List[WrappedNode]]
 
@@ -84,13 +84,13 @@ trait WrappedRecord extends N4j {
 }
 
 // A wrapped Node, which may contain atomic values or lists of atomic values
-trait WrappedNode extends N4j {
+trait WrappedNode extends ParseN4j {
   def getAtom(name: String): Result[WrappedAtom]
   def getAtoms(name: String): Result[List[WrappedAtom]]
 }
 
 // A wrapped Value that can be either a node, an atomic value or a list of Values
-trait WrappedMolecule extends N4j {
+trait WrappedMolecule extends ParseN4j {
   def nonNull: Boolean
 
   def asNode: Result[WrappedNode]
@@ -102,11 +102,9 @@ trait WrappedMolecule extends N4j {
   def asMolecules: Result[List[WrappedMolecule]]
 }
 
-// A wrapped Value that can be an atomic value; lists of values come from the wrapped parent via a plural (ends in s)method
-trait WrappedAtom extends N4j {
-  def asUid: Result[UUID] =
-    asString.map(UUID.fromString)
+// A wrapped Value that is an atomic value; lists of values come from the wrapped parent via a plural (ends in s) method
+trait WrappedAtom extends ParseN4j {
+  def as[S](implicit atomParser: AtomParser[S]): Result[S] = atomParser(this)
 
-  def asLong: Result[Long]
-  def asString: Result[String]
+  def value: Value
 }

@@ -2,7 +2,7 @@ package mwittmann.neo4japp.parsewitherror
 
 import scala.collection.JavaConverters._
 
-import mwittmann.neo4japp.parsewitherror.N4j.{Result, tryCatch}
+import mwittmann.neo4japp.parsewitherror.ParseN4j.{Result, tryCatch}
 import org.neo4j.driver.v1.Record
 
 case class WrappedRecordImpl(record: Record) extends WrappedRecord {

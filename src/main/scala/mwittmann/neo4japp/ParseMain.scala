@@ -5,8 +5,10 @@ import scala.collection.immutable
 
 import cats.syntax._
 import cats.implicits._
-import mwittmann.neo4japp.parsewitherror.N4j.{MoleculeParser, NodeParser, Result, optional, three}
+
+import mwittmann.neo4japp.parsewitherror.ParseN4j.{MoleculeParser, NodeParser, Result, optional, three}
 import mwittmann.neo4japp.parsewitherror.{WrappedNode, WrappedRecord}
+import mwittmann.neo4japp.parsewitherror.AtomParsers._
 
 object ParseMain {
 
@@ -20,16 +22,14 @@ object ParseMain {
       inputMolecules <- result.getMolecules("inputs")
 
       inputParts <- {
-        val x: List[Result[(WrappedNode, WrappedNode, WrappedNode)]] = inputMolecules.map { molecule =>
+        inputMolecules.map { molecule =>
           for {
             inputParts <- molecule.asMolecules
             artifactDefnNode <- inputParts(0).asNode
             artifactNode <- inputParts(1).asNode
             fileDataNode <- inputParts(2).asNode
           } yield (artifactDefnNode, artifactNode, fileDataNode)
-        }
-        val y: Result[List[(WrappedNode, WrappedNode, WrappedNode)]] = x.sequence
-        y
+        }.sequence[Result, (WrappedNode, WrappedNode, WrappedNode)]
       }
     } yield inputParts
   }
@@ -41,10 +41,10 @@ object ParseMain {
   val artifactDefnParser: NodeParser[Artifact] = { node =>
     for {
       uidAtom <- node.getAtom("uid")
-      uid     <-  uidAtom.asUid
+      uid     <-  uidAtom.as[UUID]
 
       blobUidAtom <- node.getAtom("blobUid")
-      blobUid <-  blobUidAtom.asUid
+      blobUid <-  blobUidAtom.as[UUID]
     } yield Artifact(uid, blobUid)
   }
 
