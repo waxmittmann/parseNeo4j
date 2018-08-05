@@ -14,7 +14,7 @@ object WrappedAtomImpl {
     }
 
     implicit val parseInt: AtomParser[Int] = (wa: WrappedAtom) => {
-      tryCatch(wa.value.asInt(), s"Wasn't a long: ${wa.value}")
+      tryCatch(wa.value.asInt(), s"Wasn't an int: ${wa.value}")
     }
 
     implicit val parseString: AtomParser[String] = (wa: WrappedAtom) => {

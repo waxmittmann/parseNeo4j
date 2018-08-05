@@ -50,7 +50,36 @@ class ParseN4jSpec extends Specification {
         A(uid2, "b")
       )))
     }
-  }
 
+    "fail" in {
+      val rl = randomLabel
+
+      val wd: WrappedDriver = WrappedDriver.local
+      val uid1 = UUID.randomUUID()
+      wd.unsafeTx { _.run(s"CREATE (v :A :$rl { uid: '${uid1.toString}', attr: 'a' })").summary() }
+
+      val parse = wd.unsafeTx { _.run(s"MATCH (v :$rl :A) RETURN v") }
+      val resultLi: List[Record] = parse.list().asScala.toList
+
+
+      case class A(uid: UUID, attr: Int)
+
+      val nodeParser: NodeParser[A] = { node =>
+        for {
+          uid <- node.get[UUID]("uid")
+          attr <- node.get[Int]("attr")
+        } yield A(uid, attr)
+      }
+
+      val parser = ParseN4j.parseRecords("v", nodeParser)
+      val r: Result[List[A]] = parser(resultLi)
+
+      println(r)
+
+      r should beLeft
+      r.left.get._1 mustEqual("Wasn't an int: \"a\"")
+    }
+
+  }
 
 }
