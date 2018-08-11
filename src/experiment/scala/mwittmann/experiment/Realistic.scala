@@ -2,9 +2,9 @@ package mwittmann.experiment
 
 import java.util.UUID
 
+import mwittmann.neo4japp.experiment.Realistic.InstancesBookmark
 import mwittmann.neo4japp.parsewitherror.{ParseN4j, WrappedNode, WrappedRecord}
 import mwittmann.neo4japp.parsewitherror.ParseN4j.{MoleculeParser, NodeParser, RecordParser, Result}
-
 import mwittmann.neo4japp.parsewitherror.WrappedAtomImpl.Implicits._
 import mwittmann.neo4japp.parsewitherror.ParseN4j._
 
@@ -69,6 +69,21 @@ object Realistic {
 
     x
   }
+
+  /*
+
+      RETURN uid, instances
+
+   */
+
+  val is: RecordParser[InstancesBookmark] = { (i: WrappedRecord) =>
+    for {
+      uid       <- i.getAtomAs[UUID]("uid")
+      instances <- i.getMoleculesAs[Instance]("instances")
+    } yield InstancesBookmark(uid, instances)
+  }
+
+
 
 
   val query =
