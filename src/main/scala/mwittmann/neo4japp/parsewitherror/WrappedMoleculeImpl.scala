@@ -5,6 +5,16 @@ import scala.collection.JavaConverters._
 import mwittmann.neo4japp.parsewitherror.ParseN4j.{Result, tryCatch}
 import org.neo4j.driver.v1.Value
 
+
+
+//object WrappedMoleculeImpl {
+//
+//  object Implicits {
+//
+//  }
+//
+//}
+
 case class WrappedMoleculeImpl(value: Value) extends WrappedMolecule {
   override def asNode: Result[WrappedNode] =
     tryCatch(

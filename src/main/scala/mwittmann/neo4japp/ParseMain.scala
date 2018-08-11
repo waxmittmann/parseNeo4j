@@ -8,6 +8,8 @@ import cats.implicits._
 import mwittmann.neo4japp.parsewitherror.ParseN4j.{MoleculeParser, NodeParser, Result, optional, three}
 import mwittmann.neo4japp.parsewitherror.{WrappedNode, WrappedRecord}
 import mwittmann.neo4japp.parsewitherror.WrappedAtomImpl.Implicits._
+import mwittmann.neo4japp.parsewitherror.ParseN4j._
+import mwittmann.neo4japp.parsewitherror.ParseN4j.Implicits._
 
 object ParseMain {
 
@@ -52,6 +54,12 @@ object ParseMain {
   val fileData: NodeParser[FileData] = ???
 
   val inputsParser: MoleculeParser[(Artifact, ArtifactDefn, Option[FileData])] =
-    three(artifactDefnParser, artifactParser, optional(fileData))
+//    three(artifactDefnParser, artifactParser, optional(fileData))
+    // Todo: Why doesn't implicit conversion work here now?
+    three(
+      moleculeFromNodeI(artifactDefnParser),
+      moleculeFromNodeI(artifactParser),
+      optional(moleculeFromNodeI(fileData))
+    )
 
 }

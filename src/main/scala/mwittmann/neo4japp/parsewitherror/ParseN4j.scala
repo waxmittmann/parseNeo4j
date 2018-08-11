@@ -2,6 +2,7 @@ package mwittmann.neo4japp.parsewitherror
 
 import java.util.UUID
 import scala.collection.JavaConverters._
+import scala.collection.immutable
 
 import cats.syntax._
 import cats.implicits._
@@ -18,12 +19,37 @@ object ParseN4j {
   type MoleculeParser[S] = WrappedMolecule => Result[S]
   type RecordParser[S] = WrappedRecord => Result[S]
 
-  implicit class NodeGetDirect(wn: WrappedNode) {
-    def get[S](field: String)(implicit atomParser: AtomParser[S]): Result[S] = for {
-      atom <- wn.getAtom(field)
-      value <- atomParser(atom)
-    } yield value
+//  implicit class NodeGetDirect(wn: WrappedNode) {
+//    def get[S](field: String)(implicit atomParser: AtomParser[S]): Result[S] = for {
+//      atom <- wn.getAtom(field)
+//      value <- atomParser(atom)
+//    } yield value
+//
+//    def getList[S](field: String)(implicit atomParser: AtomParser[S]): Result[List[S]] = for {
+//      atoms <- wn.getAtoms(field)
+//      value <- atoms.map(atomParser)
+//    } yield value
+//  }
+
+  object Implicits {
+    // Convert a node parser to a molecule parser
+    implicit def moleculeFromNodeI[S](implicit np: NodeParser[S]): MoleculeParser[S] = moleculeFromNode(np)
+
+    // Optionally match what the input parser matches
+    implicit def optionalI[S](implicit s: MoleculeParser[S]): MoleculeParser[Option[S]] = optional(s)
+
+    // Combine two molecule parsers
+    implicit def twoI[S, T](implicit
+      s: MoleculeParser[S],
+      t: MoleculeParser[T]
+    ): MoleculeParser[(S, T)] = two(s, t)
+
+    implicit def threeI[S, T, U](implicit
+      s: MoleculeParser[S], t: MoleculeParser[T], u: MoleculeParser[U]
+    ): MoleculeParser[(S, T, U)] = three(s, t, u)
   }
+
+  def tryCatchC[S](fn: => S)(error: String): Result[S] = tryCatch(fn, error)
 
   // Util for implementations to catch neo4j conversion errors
   def tryCatch[S](fn: => S, error: String): Result[S] =
@@ -34,7 +60,7 @@ object ParseN4j {
     }
 
   // Convert a node parser to a molecule parser
-  implicit def moleculeFromNode[S](np: NodeParser[S]): MoleculeParser[S] = { molecule =>
+  def moleculeFromNode[S](np: NodeParser[S]): MoleculeParser[S] = { molecule =>
     for {
       n <- molecule.asNode
       n2 <- np(n)
@@ -85,8 +111,6 @@ object ParseN4j {
     } yield (si, ti, ui)
   }
 
-
-
   def parseRecords[S](alias: String, parser: NodeParser[S]): List[Record] => Result[List[S]] = { (records: List[Record]) =>
     val p: RecordParser[S] = parseNodeList(alias, parser)
     records.map(r => p(WrappedRecordImpl(r))).sequence[Result, S]
@@ -109,6 +133,18 @@ sealed trait ParseN4j
 
 // A wrapped Record, which may contain WrappedNode(s), WrappedMolecule(s) or WrappedAtom(s)
 trait WrappedRecord extends ParseN4j {
+  def getNodesAs[S](name: String)(implicit nodeParser: NodeParser[S]): Result[List[S]] =
+    getNodes(name).flatMap(_.map(nodeParser).sequence[Result, S])
+
+  def getMoleculesAs[S](name: String)(implicit moleculeParser: MoleculeParser[S]): Result[List[S]] =
+    getMolecules(name).flatMap(_.map(moleculeParser).sequence[Result, S])
+
+  def getNodeAs[S](name: String)(implicit nodeParser: NodeParser[S]): Result[S] =
+    getNode(name).flatMap(nodeParser)
+
+  def getAtomAs[S](name: String)(implicit atomParser: AtomParser[S]): Result[S] =
+    getAtom(name).flatMap(atomParser)
+
   def getNode(name: String): Result[WrappedNode]
   def getNodes(name: String): Result[List[WrappedNode]]
 
@@ -121,6 +157,16 @@ trait WrappedRecord extends ParseN4j {
 
 // A wrapped Node, which may contain atomic values or lists of atomic values
 trait WrappedNode extends ParseN4j {
+  def getAtomAs[S](field: String)(implicit atomParser: AtomParser[S]): Result[S] = for {
+    atom  <- getAtom(field)
+    value <- atomParser(atom)
+  } yield value
+
+  def getAtomsAs[S](field: String)(implicit atomParser: AtomParser[S]): Result[List[S]] = for {
+    atoms <- getAtoms(field)
+    value <- atoms.map(atomParser).sequence
+  } yield value
+
   def getAtom(name: String): Result[WrappedAtom]
   def getAtoms(name: String): Result[List[WrappedAtom]]
 }

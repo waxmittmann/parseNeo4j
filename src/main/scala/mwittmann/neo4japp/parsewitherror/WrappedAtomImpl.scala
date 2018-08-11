@@ -30,6 +30,17 @@ object WrappedAtomImpl {
         tryCatch(UUID.fromString(s), s"Wasn't a uuid: ${wa.value}")
       }
     }
+
+//    implicit def parseList[S](implicit sParser: AtomParser[S]): AtomParser[List[S]] = (wa: WrappedAtom) => {
+//      tryCatch {
+//        wa.
+//        val ss = wa.value.asList(v => v).asScala.toList
+//        ss.map(sPar)
+//      } {
+//
+//      }
+//    }
+
   }
 }
 

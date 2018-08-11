@@ -7,13 +7,13 @@ import scala.collection.JavaConverters._
 
 import cats.syntax._
 import cats.implicits._
+import org.neo4j.driver.v1.Record
+import org.neo4j.driver.v1.summary.ResultSummary
+import org.specs2.mutable.Specification
 
 import mwittmann.neo4japp.db.WrappedDriver
 import mwittmann.neo4japp.parsewitherror.ParseN4j._
 import mwittmann.neo4japp.parsewitherror.WrappedAtomImpl.Implicits._
-import org.neo4j.driver.v1.Record
-import org.neo4j.driver.v1.summary.ResultSummary
-import org.specs2.mutable.Specification
 
 class ParseN4jSpec extends Specification {
 
@@ -43,8 +43,8 @@ class ParseN4jSpec extends Specification {
 
       val nodeParser: NodeParser[A] = { node =>
         for {
-          uid <- node.get[UUID]("uid")
-          attr <- node.get[String]("attr")
+          uid <- node.getAtomAs[UUID]("uid")
+          attr <- node.getAtomAs[String]("attr")
         } yield A(uid, attr)
       }
 
@@ -78,8 +78,8 @@ class ParseN4jSpec extends Specification {
 
       val nodeParser: NodeParser[A] = { node =>
         for {
-          uid <- node.get[UUID]("uid")
-          attr <- node.get[Int]("attr")
+          uid   <- node.getAtomAs[UUID]("uid")
+          attr  <- node.getAtomAs[Int]("attr")
         } yield A(uid, attr)
       }
 
@@ -124,18 +124,18 @@ class ParseN4jSpec extends Specification {
 
       val bParser: NodeParser[B] = { node =>
         for {
-          uid <- node.get[UUID]("uid")
-          attr <- node.get[String]("attr")
+          uid <- node.getAtomAs[UUID]("uid")
+          attr <- node.getAtomAs[String]("attr")
         } yield B(uid, attr)
       }
 
       val aParser: RecordParser[A] = { (record: WrappedRecord) =>
         for {
-          node <- record.getNode("a")
-          uid <- node.get[UUID]("uid")
-          attr <- node.get[String]("attr")
+          node  <- record.getNode("a")
+          uid   <- node.getAtomAs[UUID]("uid")
+          attr  <- node.getAtomAs[String]("attr")
           rawBs <- record.getNodes("bs")
-          bs <- rawBs.map(bParser).sequence
+          bs    <- rawBs.map(bParser).sequence
         } yield A(uid, attr, bs)
       }
 

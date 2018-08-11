@@ -35,3 +35,27 @@ libraryDependencies ++= Seq(
 
 // For macro annotations
 addCompilerPlugin("org.scalamacros" %% "paradise" % "2.1.0" cross CrossVersion.full)
+
+/*
+//lazy val root = Project(id = "main", base = file(".")) // aggregate experiment dependsOn experiment
+//lazy val experiment = Project(id = "experiment", base = file("experiment")) dependsOn root //aggregate root
+
+lazy val global = project
+//  .in(file("."))
+  .aggregate(
+    root,
+    experiment
+  )
+
+//lazy val root = project //Project(id = "main", base = file(".")) // aggregate experiment dependsOn experiment
+lazy val root = project.in(file(".")) //Project(id = "main", base = file(".")) // aggregate experiment dependsOn experiment
+
+lazy val experiment = Project(id = "experiment", base = file("experiment")) dependsOn root //aggregate root
+
+//lazy val common = project
+//
+//lazy val multi1 = project
+//  .dependsOn(
+//    common
+//  )
+*/
