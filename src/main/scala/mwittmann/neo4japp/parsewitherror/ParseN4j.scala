@@ -4,14 +4,51 @@ import java.util.UUID
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
+import cats.data.{IndexedStateT, State, StateT}
 import cats.syntax._
 import cats.implicits._
 import mwittmann.neo4japp.parsewitherror.ParseN4j._
 import org.neo4j.driver.v1.{Record, Value}
 
 object ParseN4j {
+
+  case class ParseState()
+//  type ResultState[S] = State[ParseState, S]
+
+  case class Error(message: String, exception: Option[Exception], state: ParseState)
+
+  object Result {
+
+//    def failure[S](error: Error): Result[S] = StateT[ErrorEither, ParseState, S] { (s: ParseState) =>
+//      val x: ErrorEither[(ParseState, S)] = Left[Error, (ParseState, S)](error)
+//      x
+//    }
+//
+//    def success[S](s: S): Result[S] = StateT[ErrorEither, ParseState, S] { (ps: ParseState) =>
+//      val x: ErrorEither[(ParseState, S)] = Right[Error, (ParseState, S)]((ps, s))
+//      x
+//    }
+
+    def failure[S](error: Error): ErrorEither[(ParseState, S)] = {
+      val x: ErrorEither[(ParseState, S)] = Left[Error, (ParseState, S)](error)
+      x
+    }
+
+    def success[S](ps: ParseState)(s: S): ErrorEither[(ParseState, S)] = {
+      val x: ErrorEither[(ParseState, S)] = Right[Error, (ParseState, S)]((ps, s))
+      x
+    }
+
+  }
+
   // Result type for parse
-  type Result[S] = Either[(String, Option[Exception]), S]
+//  type Result[S] = Either[(String, Option[Exception]), ResultState[S]]
+
+
+  type ErrorEither[S] = Either[Error, S]
+  type Result[S] = StateT[ErrorEither, ParseState, S]
+
+//  type Result[S] = Either[(String, Option[Exception]), S]
 
   // Parsers for the different wrapped neo4j objects
   type NodeParser[S] = WrappedNode => Result[S]
@@ -49,15 +86,37 @@ object ParseN4j {
     ): MoleculeParser[(S, T, U)] = three(s, t, u)
   }
 
-  def tryCatchC[S](fn: => S)(error: String): Result[S] = tryCatch(fn, error)
+//  def tryCatchC[S](fn: => S)(error: String): Result[S] = tryCatch(fn, error)
 
   // Util for implementations to catch neo4j conversion errors
-  def tryCatch[S](fn: => S, error: String): Result[S] =
-    try {
-      Right(fn)
-    } catch {
-      case e: Exception => Left((error, Some(e)))
+//  def tryCatch[S](fn: => S, error: String): Result[S] = {
+//    try {
+//      Right(fn)
+//    } catch {
+//      case e: Exception => Left((error, Some(e)))
+//    }
+//  }
+
+//  def tryCatch[S](fn: => S, error: String): Result[S] =
+  def tryCatch[S](fn: => S, error: String): Result[S] = {
+    StateT  { (state: ParseState) =>
+//    StateT.modifyF[ErrorEither, ParseState, S] { (state: ParseState) =>
+      //val x1: Either[Error, S] = Right[Error, S](fn): Either[Error, S]
+
+
+      try {
+        //        Right(fn)
+//        val x: Either[Error, S] = Right[Error, S](fn)
+//        x
+
+        Result.success(state)(fn)
+      } catch {
+        case e: Exception =>
+          Result.failure(Error(error, Some(e), state))
+//          Left[Error, S](Error(error, Some(e), state))
+      }
     }
+  }
 
   // Convert a node parser to a molecule parser
   def moleculeFromNode[S](np: NodeParser[S]): MoleculeParser[S] = { molecule =>
