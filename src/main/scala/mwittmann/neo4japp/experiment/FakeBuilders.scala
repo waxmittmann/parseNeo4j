@@ -51,8 +51,9 @@ object FakeBuilders {
       //     molecules = Some(List(fakeArtifactNode, fakeFileDataNode))
     )
 
-  def fakeOutputs: FakeWrappedMolecule =
-    FakeWrappedMolecule.nodesAsMolecules(nodes = List(fakeArtifactNode))
+//  def fakeOutputs: FakeWrappedMolecule =
+//    FakeWrappedMolecule.nodesAsMolecules(nodes = List(fakeArtifactNode))
+//    FakeWrappedMolecule.nodesAsMolecules(nodes = List(fakeArtifactNode))
 
   def fakeBindings: FakeWrappedMolecule =
     FakeWrappedMolecule.twoAsNodesAndMolecules(fakeBindingKeyNode, fakeBindingValueNode)
@@ -66,9 +67,10 @@ object FakeBuilders {
   def fakeInstance =
     FakeWrappedRecord(
       node = Map("i" -> fakeInstanceAttrs),
+      nodes = Map("outputs" -> List(fakeArtifactNode)),
       molecules = Map(
         "inputs"  -> List(fakeInputs),
-        "outputs" -> List(fakeOutputs),
+//        "outputs" -> List(fakeOutputs),
         "bindings"-> List(fakeBindings)
       )
     )

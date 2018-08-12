@@ -121,14 +121,20 @@ object FakeN4j {
       this.copy(
         nodes = Some(List(na, nb)),
         molecule = Some(FakeWrappedMolecule(nodes = Some(List(na, nb)))),
-        molecules = Some(List(FakeWrappedMolecule(nodes = Some(List(na, nb)))))
+//        molecules = Some(List(FakeWrappedMolecule(nodes = Some(List(na, nb)))))
+        molecules = Some(List(FakeWrappedMolecule(node = Some(na)), FakeWrappedMolecule(node = Some(nb))))
       )
 
     def addThreeAsNodesAndMolecules(na: FakeWrappedNode, nb: FakeWrappedNode, nc: FakeWrappedNode): FakeWrappedMolecule =
       this.copy(
         nodes = Some(List(na, nb, nc)),
         molecule = Some(FakeWrappedMolecule(nodes = Some(List(na, nb, nc)))),
-        molecules = Some(List(FakeWrappedMolecule(nodes = Some(List(na, nb, nc)))))
+//        molecules = Some(List(FakeWrappedMolecule(nodes = Some(List(na, nb, nc)))))
+        molecules = Some(List(
+          FakeWrappedMolecule(node = Some(na)),
+          FakeWrappedMolecule(node = Some(nb)),
+          FakeWrappedMolecule(node = Some(nc))
+        ))
       )
 
     override def asNode: Result[WrappedNode] = as(node, "node")
