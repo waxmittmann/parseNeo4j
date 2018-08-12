@@ -74,4 +74,11 @@ object FakeBuilders {
         "bindings"-> List(fakeBindings)
       )
     )
+
+  def fakeBookmark: FakeWrappedRecord =
+    FakeWrappedRecord(
+      atom = Map("uid" -> FakeWrappedUUID(UUID.randomUUID())),
+      molecules = Map("instances" -> List(fakeInstance, fakeInstance))
+    )
+
 }

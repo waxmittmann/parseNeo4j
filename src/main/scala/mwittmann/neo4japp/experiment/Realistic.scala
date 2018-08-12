@@ -67,10 +67,6 @@ object Realistic {
   val fdm: MoleculeParser[FileData] = moleculeFromNode(fd)
 
 
-  val anInstance: FakeWrappedRecord = FakeBuilders.fakeInstance
-//  println(anInstance)
-  pprint.pprintln(anInstance)
-
   def instanceParser: RecordParser[Instance] = { (i: WrappedRecord) =>
     for {
       inst      <- i.getNode("i")
@@ -83,6 +79,15 @@ object Realistic {
     } yield {
       Instance(uid, status, inputs, outputs, bindings.toMap)
     }
+  }
+
+  def bookmarkParser: RecordParser[InstancesBookmark] = { (i: WrappedRecord) =>
+    val x: Result[InstancesBookmark] =
+      for {
+        uid       <- i.getAtomAs[UUID]
+        instances <- i.getMoleculesAs[Instance]
+      } yield InstancesBookmark(uid, instances)
+    x
   }
 
   val query =
@@ -98,13 +103,15 @@ object Realistic {
     """.stripMargin
 
 
-  def main(args: Array[String]): Unit = {
-    val result = instanceParser(anInstance)
-    val r = result.run(ParseState.empty)
-    println(r)
-    println("   \n\n\n")
-    println(r.left.map(_.state.actions.map(_._2).reverse.mkString("\n")))
+  val anInstance: FakeWrappedRecord = FakeBuilders.fakeInstance
+  //  println(anInstance)
+  pprint.pprintln(anInstance)
 
+
+  val aBookmark: FakeWrappedRecord = FakeBuilders.fakeBookmark
+
+
+  def main(args: Array[String]): Unit = {
 
 //    val rp: RecordParser[List[(Artifact, Option[FileData])]] =
 //      (r: WrappedRecord) => r.getMoleculesAs[(Artifact, Option[FileData])]("inputs")
@@ -112,6 +119,18 @@ object Realistic {
 //    println(r2)
 //    println("<><><><><><><><><>")
 //    println(r2.left.map(_.state.actions.map(_._2).reverse.mkString("\n--\n")))
+
+    //    val result = instanceParser(anInstance)
+    //    val r = result.run(ParseState.empty)
+    //    println(r)
+    //    println("   \n\n\n")
+    //    println(r.left.map(_.state.actions.map(_._2).reverse.mkString("\n")))
+
+    val result = instanceParser(aBookmark)
+    val r = result.run(ParseState.empty)
+    println(r)
+    println("   \n\n\n")
+    println(r.left.map(_.state.actions.map(_._2).reverse.mkString("\n")))
   }
 
 }
