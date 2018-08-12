@@ -47,4 +47,10 @@ case class WrappedMoleculeImpl(value: Value) extends WrappedMolecule {
     )
 
   override def nonNull: Boolean = !value.isNull
+
+  override def asMolecule: Result[WrappedMolecule] =
+    tryCatch(
+      value.asList(v => v).asScala.toList.map(WrappedMoleculeImpl).head,
+      s"$value not a ???"
+    )
 }

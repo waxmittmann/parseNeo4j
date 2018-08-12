@@ -12,22 +12,31 @@ import org.neo4j.driver.v1.{Record, Value}
 
 object ParseN4j {
 
-  case class ParseState()
-//  type ResultState[S] = State[ParseState, S]
+  object ParseState {
+    def empty = ParseState(List.empty)
+  }
+
+  case class ParseState(actions: List[(String, String)]) {
+    def appendAction(str: String): ParseState = this.copy(actions = (str, str) :: actions)
+
+    def appendAction(str: String, full: String): ParseState = this.copy(actions = (str, full) :: actions)
+  }
+
+  //  type ResultState[S] = State[ParseState, S]
 
   case class Error(message: String, exception: Option[Exception], state: ParseState)
 
   object Result {
 
-//    def failure[S](error: Error): Result[S] = StateT[ErrorEither, ParseState, S] { (s: ParseState) =>
-//      val x: ErrorEither[(ParseState, S)] = Left[Error, (ParseState, S)](error)
-//      x
-//    }
-//
-//    def success[S](s: S): Result[S] = StateT[ErrorEither, ParseState, S] { (ps: ParseState) =>
-//      val x: ErrorEither[(ParseState, S)] = Right[Error, (ParseState, S)]((ps, s))
-//      x
-//    }
+    def failureF[S](message: String, ex: Option[Exception] = None): Result[S] = StateT[ErrorEither, ParseState, S] { (s: ParseState) =>
+      val x: ErrorEither[(ParseState, S)] = Left[Error, (ParseState, S)](Error(message, ex, s))
+      x
+    }
+
+    def successF[S](s: S, sfn: ParseState => ParseState = identity): Result[S] = StateT[ErrorEither, ParseState, S] { (ps: ParseState) =>
+      val x: ErrorEither[(ParseState, S)] = Right[Error, (ParseState, S)]((sfn(ps), s))
+      x
+    }
 
     def failure[S](error: Error): ErrorEither[(ParseState, S)] = {
       val x: ErrorEither[(ParseState, S)] = Left[Error, (ParseState, S)](error)
@@ -97,23 +106,13 @@ object ParseN4j {
 //    }
 //  }
 
-//  def tryCatch[S](fn: => S, error: String): Result[S] =
-  def tryCatch[S](fn: => S, error: String): Result[S] = {
+  def tryCatch[S](fn: => S, error: String, sFn: ParseState => ParseState = identity): Result[S] = {
     StateT  { (state: ParseState) =>
-//    StateT.modifyF[ErrorEither, ParseState, S] { (state: ParseState) =>
-      //val x1: Either[Error, S] = Right[Error, S](fn): Either[Error, S]
-
-
       try {
-        //        Right(fn)
-//        val x: Either[Error, S] = Right[Error, S](fn)
-//        x
-
-        Result.success(state)(fn)
+        Result.success(sFn(state))(fn)
       } catch {
         case e: Exception =>
           Result.failure(Error(error, Some(e), state))
-//          Left[Error, S](Error(error, Some(e), state))
       }
     }
   }
@@ -131,7 +130,7 @@ object ParseN4j {
     if (molecule.nonNull)
       s(molecule).map((v: S) => Some(v))
     else
-      Right(None)
+      Result.successF(None, (v: ParseState) => v.appendAction(s"Got optional from $molecule"))
   }
 
   // Combine two molecule parsers
@@ -142,9 +141,9 @@ object ParseN4j {
     for {
       items <- molecule.asMolecules
       _ <-
-        if (items.size < 2) Left("Fewer than 2 items", None)
-        else if (items.size > 2) Left(("More than 2 items", None))
-        else Right(())
+        if (items.size < 2)       Result.failureF("Fewer than 2 items", None)
+        else if (items.size > 2)  Result.failureF("More than 2 items", None)
+        else                      Result.successF((), _.appendAction("Correct number of times"))
 
       si <- s(items(0))
       ti <- t(items(1))
@@ -160,9 +159,13 @@ object ParseN4j {
     for {
       items <- molecule.asMolecules
       _ <-
-        if (items.size < 3) Left("Fewer than 3 items", None)
-        else if (items.size > 3) Left(("More than 3 items", None))
-        else Right(())
+//        if (items.size < 3) Left("Fewer than 3 items", None)
+//        else if (items.size > 3) Left(("More than 3 items", None))
+//        else Right(())
+
+        if (items.size < 3)       Result.failureF("Fewer than 3 items", None)
+        else if (items.size > 3)  Result.failureF("More than 3 items", None)
+        else                      Result.successF((), _.appendAction("Correct number of times"))
 
       si <- s(items(0))
       ti <- t(items(1))
@@ -240,6 +243,7 @@ trait WrappedMolecule extends ParseN4j {
   def asAtom: Result[WrappedAtom]
   def asAtoms: Result[List[WrappedAtom]]
 
+  def asMolecule: Result[WrappedMolecule]
   def asMolecules: Result[List[WrappedMolecule]]
 }
 

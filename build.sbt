@@ -30,7 +30,10 @@ libraryDependencies ++= Seq(
 
   // Test
   "org.specs2" %% "specs2-core" % specsVersion % "test",
-  "org.scalacheck" %% "scalacheck" % scalacheckVersion % "test"
+  "org.scalacheck" %% "scalacheck" % scalacheckVersion % "test",
+
+  // Pretty print
+  "com.lihaoyi" %% "pprint" % "0.5.3"
 )
 
 // For macro annotations

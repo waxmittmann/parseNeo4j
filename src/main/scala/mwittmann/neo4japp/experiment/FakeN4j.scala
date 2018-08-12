@@ -2,6 +2,7 @@ package mwittmann.neo4japp.experiment
 
 import java.util.UUID
 
+import mwittmann.neo4japp.experiment.FakeN4j.FakeWrappedMolecule
 import mwittmann.neo4japp.parsewitherror.ParseN4j.Result
 import mwittmann.neo4japp.parsewitherror.{WrappedAtom, WrappedMolecule, WrappedNode, WrappedRecord}
 import org.neo4j.driver.internal.value._
@@ -19,22 +20,40 @@ object FakeN4j {
   ) extends WrappedRecord {
     
     override def getNode(name: String): Result[WrappedNode] =
-      node.get(name).map(Right.apply).getOrElse(Left(s"No node $name", None))
+      get(node, "node", name)
 
-    override def getNodes(name: String): Result[List[WrappedNode]] = 
-      nodes.get(name).map(Right.apply).getOrElse(Left(s"No nodes $name", None))
+    override def getNodes(name: String): Result[List[WrappedNode]] =
+      get(nodes, "nodes", name)
 
     override def getAtom(name: String): Result[WrappedAtom] =
-      atom.get(name).map(Right.apply).getOrElse(Left(s"No atom $name", None))
+      get(atom, "atom", name)
 
     override def getAtoms(name: String): Result[List[WrappedAtom]] =
-     atoms.get(name).map(Right.apply).getOrElse(Left(s"No atoms $name", None))
+      get(atoms, "atoms", name)
 
     override def getMolecule(name: String): Result[WrappedMolecule] =
-      molecule.get(name).map(Right.apply).getOrElse(Left(s"No molecule $name", None))
-    
+      get(molecule, "molecule", name)
+
     override def getMolecules(name: String): Result[List[WrappedMolecule]] =
-      molecules.get(name).map(Right.apply).getOrElse(Left(s"No molecules $name", None))
+      get(molecules, "molecules", name)
+
+    private def get[S](m: Map[String, S], `type`: String, name: String): Result[S] =
+       m.get(name)
+        .map(v => Result.successF(v, _.appendAction(
+          s"Got ${`type`} $name",
+          s"Got ${`type`} $name: ${m(name)}"
+        )))
+        .getOrElse(Result.failureF(s"No ${`type`} $name\n${getStatus(name)}"))
+
+    private def getStatus(name: String): String =
+      s"""
+         |Node? ${node.get(name).isDefined}
+         |Nodes? ${nodes.get(name).isDefined}
+         |Atom? ${atom.get(name).isDefined}
+         |Atoms? ${atoms.get(name).isDefined}
+         |Molecule? ${molecule.get(name).isDefined}
+         |Molecules? ${molecules.get(name).isDefined}
+       """.stripMargin
   }
   
   case class FakeWrappedNode(
@@ -42,37 +61,93 @@ object FakeN4j {
     atoms: Map[String, List[WrappedAtom]] = Map.empty
   ) extends WrappedNode {
     override def getAtom(name: String): Result[WrappedAtom] =
-      atom.get(name).map(Right.apply).getOrElse(Left(s"No atom $name", None))
+      atom.get(name)
+        .map(v => Result.successF(v, _.appendAction(s"Got atom $name")))
+        .getOrElse(Result.failureF(s"No atom $name"))
 
     override def getAtoms(name: String): Result[List[WrappedAtom]] =
-      atoms.get(name).map(Right.apply).getOrElse(Left(s"No atoms $name", None))
+      atoms.get(name)
+        .map(v => Result.successF(v, _.appendAction(s"Got atoms $name")))
+        .getOrElse(Result.failureF(s"No atoms $name"))
+
+//    def asMolecule: FakeWrappedMolecule =
+//      FakeWrappedMolecule(node = Some(this))
+  }
+
+  object FakeWrappedMolecule {
+
+    def nodeAsMolecule(
+      node: FakeWrappedNode
+    ): FakeWrappedMolecule =
+      FakeWrappedMolecule().addAsNodeAndMolecule(node)
+
+    def nodesAsMolecules(
+      nodes: List[FakeWrappedNode]
+    ): FakeWrappedMolecule =
+      FakeWrappedMolecule().addAsNodesAndMolecules(nodes)
+
   }
 
   case class FakeWrappedMolecule(
-    node: Option[WrappedNode] = None,
-    nodes: Option[List[WrappedNode]]= None,
+    node: Option[FakeWrappedNode] = None,
+    nodes: Option[List[FakeWrappedNode]]= None,
     atom: Option[WrappedAtom] = None,
     atoms: Option[List[WrappedAtom]] = None,
-    molecules: Option[List[WrappedMolecule]] = None
+    molecule: Option[FakeWrappedMolecule] = None,
+    molecules: Option[List[FakeWrappedMolecule]] = None
   ) extends WrappedMolecule {
     override def nonNull: Boolean =
       node.isDefined || nodes.isDefined || atom.isDefined || atoms.isDefined || molecules.isDefined
 
-    override def asNode: Result[WrappedNode] =
-      node.map(Right.apply).getOrElse(Left("Not a node", None))
+//    def withNodeAndMolecule(node: FakeWrappedMolecule): FakeWrappedMolecule =
 
-    override def asNodes: Result[List[WrappedNode]] =
-      nodes.map(Right.apply).getOrElse(Left("Not a node", None))
+//    def FakeWrappedMolecule(molecule: FakeWrappedMolecule): WrappedMolecule = ???
 
-    override def asAtom: Result[WrappedAtom] =
-      atom.map(Right.apply).getOrElse(Left("Not a node", None))
+    def addAsNodeAndMolecule(node: FakeWrappedNode): FakeWrappedMolecule =
+      this.copy(
+        node = Some(node),
+        molecule = Some(FakeWrappedMolecule(node = Some(node)))
+      )
 
-    override def asAtoms: Result[List[WrappedAtom]] =
-      atoms.map(Right.apply).getOrElse(Left("Not a node", None))
+    def addAsNodesAndMolecules(nodes: List[FakeWrappedNode]): FakeWrappedMolecule =
+      this.copy(
+        nodes = Some(nodes),
+        molecule = Some(FakeWrappedMolecule(nodes = Some(nodes)))
+      )
 
-    override def asMolecules: Result[List[WrappedMolecule]] =
-      molecules.map(Right.apply).getOrElse(Left("Not a node", None))
+    override def asNode: Result[WrappedNode] = as(node, "node")
+    override def asNodes: Result[List[WrappedNode]] = as(nodes, "nodes")
+
+    override def asAtom: Result[WrappedAtom] = as(atom, "atom")
+    override def asAtoms: Result[List[WrappedAtom]] = as(atoms, "atoms")
+
+    override def asMolecule: Result[WrappedMolecule] = as(molecule, "molecule")
+    override def asMolecules: Result[List[WrappedMolecule]] = as(molecules, "molecules")
+
+//    private def as[S](o: Option[S], name: String): Result[S] =
+//      o
+//        .map(v => Result.successF(v, _.appendAction(s"Got as $name")))
+//        .getOrElse(Result.failureF(s"Not $name\n$this"))
+
+    private def as[S](o: Option[S], name: String): Result[S] =
+      o
+        .map(v => Result.successF(v, _.appendAction(s"Got as $name")))
+        .getOrElse(Result.failureF(s"Not $name\n${getStatus(name)}"))
+
+    private def getStatus(name: String): String =
+      s"""
+         |+++++++++++++++++++++++++++++++++
+         |Node? ${node.isDefined}
+         |Nodes? ${nodes.isDefined}
+         |Atom? ${atom.isDefined}
+         |Atoms? ${atoms.isDefined}
+         |Molecule? ${molecule.isDefined}
+         |Molecules? ${molecules.isDefined}
+         |+++++++++++++++++++++++++++++++++
+       """.stripMargin
+
   }
+
   
 //  case class FakeWrappedAtom(
 //    strVal: Option[String],
