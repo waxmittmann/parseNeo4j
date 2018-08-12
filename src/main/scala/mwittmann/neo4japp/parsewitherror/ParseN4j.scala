@@ -140,9 +140,12 @@ object ParseN4j {
   ): MoleculeParser[(S, T)] = { molecule =>
     for {
       items <- molecule.asMolecules
+
+      _ = pprint.pprintln(items)
+
       _ <-
-        if (items.size < 2)       Result.failureF("Fewer than 2 items", None)
-        else if (items.size > 2)  Result.failureF("More than 2 items", None)
+        if (items.size < 2)       Result.failureF(s"Fewer than 2 items (${items.size}) in:\n$items", None)
+        else if (items.size > 2)  Result.failureF(s"More than 2 items in $items", None)
         else                      Result.successF((), _.appendAction("Correct number of times"))
 
       si <- s(items(0))

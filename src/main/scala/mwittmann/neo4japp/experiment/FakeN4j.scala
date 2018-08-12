@@ -86,6 +86,11 @@ object FakeN4j {
     ): FakeWrappedMolecule =
       FakeWrappedMolecule().addAsNodesAndMolecules(nodes)
 
+    def twoAsNodesAndMolecules(na: FakeWrappedNode, nb: FakeWrappedNode): FakeWrappedMolecule =
+      FakeWrappedMolecule().addTwoAsNodesAndMolecules(na, nb)
+
+    def threeAsNodesAndMolecules(na: FakeWrappedNode, nb: FakeWrappedNode, nc: FakeWrappedNode): FakeWrappedMolecule =
+      FakeWrappedMolecule().addThreeAsNodesAndMolecules(na, nb, nc)
   }
 
   case class FakeWrappedMolecule(
@@ -99,10 +104,6 @@ object FakeN4j {
     override def nonNull: Boolean =
       node.isDefined || nodes.isDefined || atom.isDefined || atoms.isDefined || molecules.isDefined
 
-//    def withNodeAndMolecule(node: FakeWrappedMolecule): FakeWrappedMolecule =
-
-//    def FakeWrappedMolecule(molecule: FakeWrappedMolecule): WrappedMolecule = ???
-
     def addAsNodeAndMolecule(node: FakeWrappedNode): FakeWrappedMolecule =
       this.copy(
         node = Some(node),
@@ -112,7 +113,22 @@ object FakeN4j {
     def addAsNodesAndMolecules(nodes: List[FakeWrappedNode]): FakeWrappedMolecule =
       this.copy(
         nodes = Some(nodes),
-        molecule = Some(FakeWrappedMolecule(nodes = Some(nodes)))
+        molecule = Some(FakeWrappedMolecule(nodes = Some(nodes))),
+//        molecules = Some(List(FakeWrappedMolecule(nodes = Some(nodes))))
+      )
+
+    def addTwoAsNodesAndMolecules(na: FakeWrappedNode, nb: FakeWrappedNode): FakeWrappedMolecule =
+      this.copy(
+        nodes = Some(List(na, nb)),
+        molecule = Some(FakeWrappedMolecule(nodes = Some(List(na, nb)))),
+        molecules = Some(List(FakeWrappedMolecule(nodes = Some(List(na, nb)))))
+      )
+
+    def addThreeAsNodesAndMolecules(na: FakeWrappedNode, nb: FakeWrappedNode, nc: FakeWrappedNode): FakeWrappedMolecule =
+      this.copy(
+        nodes = Some(List(na, nb, nc)),
+        molecule = Some(FakeWrappedMolecule(nodes = Some(List(na, nb, nc)))),
+        molecules = Some(List(FakeWrappedMolecule(nodes = Some(List(na, nb, nc)))))
       )
 
     override def asNode: Result[WrappedNode] = as(node, "node")
@@ -123,11 +139,6 @@ object FakeN4j {
 
     override def asMolecule: Result[WrappedMolecule] = as(molecule, "molecule")
     override def asMolecules: Result[List[WrappedMolecule]] = as(molecules, "molecules")
-
-//    private def as[S](o: Option[S], name: String): Result[S] =
-//      o
-//        .map(v => Result.successF(v, _.appendAction(s"Got as $name")))
-//        .getOrElse(Result.failureF(s"Not $name\n$this"))
 
     private def as[S](o: Option[S], name: String): Result[S] =
       o
@@ -147,18 +158,6 @@ object FakeN4j {
        """.stripMargin
 
   }
-
-  
-//  case class FakeWrappedAtom(
-//    strVal: Option[String],
-//    uidVal: Option[UUID],
-//    longVal: Option[Long],
-//    intVal: Option[Int]
-//  ) extends WrappedAtom {
-//    override def value: Value = {
-//      //val ts = TypeSystem
-//    }
-//  }
 
   case class FakeWrappedInt(v: Int) extends WrappedAtom {
     override def value: Value = new IntegerValue(v)

@@ -46,8 +46,8 @@ object FakeBuilders {
     )
 
   def fakeInputs: FakeWrappedMolecule =
-    FakeWrappedMolecule.nodesAsMolecules(
-      nodes = List(fakeArtifactNode, fakeFileDataNode)//,
+    FakeWrappedMolecule.twoAsNodesAndMolecules(
+      fakeArtifactNode, fakeFileDataNode//,
       //     molecules = Some(List(fakeArtifactNode, fakeFileDataNode))
     )
 
@@ -55,7 +55,7 @@ object FakeBuilders {
     FakeWrappedMolecule.nodesAsMolecules(nodes = List(fakeArtifactNode))
 
   def fakeBindings: FakeWrappedMolecule =
-    FakeWrappedMolecule.nodesAsMolecules(nodes = List(fakeBindingKeyNode, fakeBindingValueNode))
+    FakeWrappedMolecule.twoAsNodesAndMolecules(fakeBindingKeyNode, fakeBindingValueNode)
 
   def fakeInstanceAttrs: FakeWrappedNode =
     FakeWrappedNode(atom = Map(

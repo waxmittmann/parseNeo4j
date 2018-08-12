@@ -99,11 +99,21 @@ object Realistic {
 
 
   def main(args: Array[String]): Unit = {
-    val result = instanceParser(anInstance)
-    val r = result.run(ParseState.empty)
-    println(r)
-    println("   \n\n\n")
-    println(r.left.map(_.state.actions.map(_._2).reverse.mkString("\n")))
+//    val result = instanceParser(anInstance)
+//    val r = result.run(ParseState.empty)
+//    println(r)
+//    println("   \n\n\n")
+//    println(r.left.map(_.state.actions.map(_._2).reverse.mkString("\n")))
+
+    val rp: RecordParser[List[(Artifact, Option[FileData])]] =
+      (r: WrappedRecord) => r.getMoleculesAs[(Artifact, Option[FileData])]("inputs")
+
+    val r2 = rp(FakeWrappedRecord(molecules = Map("inputs" -> List(FakeBuilders.fakeInputs)))).run(ParseState.empty)
+
+//    println(r2.run(ParseState.empty))
+    println(r2)
+    println("<><><><><><><><><>")
+    println(r2.left.map(_.state.actions.map(_._2).reverse.mkString("\n--\n")))
   }
 
 }
