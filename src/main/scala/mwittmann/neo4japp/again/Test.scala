@@ -7,13 +7,30 @@ import cats.implicits._
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-import mwittmann.neo4japp.again.N4j.{MapParser, NodeParser}
+import mwittmann.neo4japp.again.N4j.{ListParser, MapParser, NodeParser}
 
 object N4j {
+  type EE[S] = Either[String, S]
+
   type NodeParser[S] = NNode => Either[String, S]
   type MapParser[S] = NMap => Either[String, S]
   type ListParser[S] = NList => Either[String, S]
   type N4jParser[S] = N4j => Either[String, S]
+
+  object ListParser {
+
+//    def make[S](rawParser: NList => List[Either[String, S]]): ListParser[List[S]] = { li: NList =>
+//      li.li.map {
+//
+//      }
+//
+//      rawParser(li)
+//    } //.sequence[EE, S]
+
+    def make[S](rawParser: N4j => Either[String, S]): ListParser[List[S]] = { li: NList =>
+      li.li.map(rawParser).sequence[EE, S]
+    }
+  }
 
   def asN4jParser[S <: N4j, T](parser: S => Either[String, T])(implicit ct: ClassTag[S]): N4jParser[T] = {
     case correct: S => parser(correct)
@@ -184,22 +201,44 @@ object Test {
 
     type EE[S] = Either[String, S]
 
+
+//    val artiAndFdParser: ListParser[(Artifact, Option[FileData])] = ListParser.make { (li: NList) =>
+//      for {
+//        r                     <- NList.two(li)
+//        (artiEle, maybeFdEle) = r
+//        artiNode              <- NNode.get(artiEle)
+//        arti                  <- artifactParser(artiNode)
+//        maybeFd               <- N4j.optional(fileDataParser)(maybeFdEle)
+//      } yield (arti, maybeFd)
+//    }
+
+    val artiAndFdParser: ListParser[List[(Artifact, Option[FileData])]] = ListParser.make { (ele: N4j) =>
+      for {
+        r                     <- NList.two(ele)
+        (artiEle, maybeFdEle) = r
+        artiNode              <- NNode.get(artiEle)
+        arti                  <- artifactParser(artiNode)
+        maybeFd               <- N4j.optional(fileDataParser)(maybeFdEle)
+      } yield (arti, maybeFd)
+    }
+
     val workflowInstance: MapParser[WorkflowInstance] = { (map: NMap) =>
       for {
         workflowInstanceNode  <- map.getNode("wi")
         workflowInstanceUid   <- workflowInstanceNode.stringValue("uid")
         artiAndFdNodes        <- map.getList("inputs")
-        artisFds <-
-          artiAndFdNodes.li.map { artiAndFd =>
-            for {
-              r                     <- NList.two(artiAndFd)
-//              (artiEle, maybeFdEle) <- NList.two(artiAndFd)
-              (artiEle, maybeFdEle) = r
-              artiNode              <- NNode.get(artiEle)
-              arti                  <- artifactParser(artiNode)
-              maybeFd               <- N4j.optional(fileDataParser)(maybeFdEle)
-            } yield (arti, maybeFd)
-          }.sequence[EE, (Artifact, Option[FileData])]
+        artisFds              <- artiAndFdParser(artiAndFdNodes)
+//        artisFds <-
+//          artiAndFdNodes.li.map { artiAndFd =>
+//            for {
+//              r                     <- NList.two(artiAndFd)
+////              (artiEle, maybeFdEle) <- NList.two(artiAndFd)
+//              (artiEle, maybeFdEle) = r
+//              artiNode              <- NNode.get(artiEle)
+//              arti                  <- artifactParser(artiNode)
+//              maybeFd               <- N4j.optional(fileDataParser)(maybeFdEle)
+//            } yield (arti, maybeFd)
+//          }.sequence[EE, (Artifact, Option[FileData])]
       } yield {
         val inputs = artisFds.toMap
         WorkflowInstance(workflowInstanceUid, inputs)
