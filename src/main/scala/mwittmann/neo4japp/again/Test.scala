@@ -1,21 +1,18 @@
 package mwittmann.neo4japp.again
 
-import org.neo4j.driver.v1.types.{Node, TypeSystem}
-import org.neo4j.driver.v1.{Record, Value}
-
-import cats._
-//import cats.syntax.all._
-import cats.syntax._
-import cats.implicits._
-import cats.instances._
-//import cats.instances.all._
-//import cats.syntax.flatMap._
-
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
+import cats._
+import cats.syntax._
+import cats.implicits._
+import cats.instances._
+import org.neo4j.driver.v1.types.{Node, TypeSystem}
+import org.neo4j.driver.v1.{Record, Value}
 import mwittmann.neo4japp.again.N4j.{ListParser, MapParser, NodeParser}
-
+import org.neo4j.driver.internal.InternalNode
+import org.neo4j.driver.internal.types.InternalTypeSystem
+import org.neo4j.driver.internal.value.{IntegerValue, ListValue, StringValue}
 
 object N4j {
   type EE[S] = Either[String, S]
@@ -26,20 +23,8 @@ object N4j {
   type N4jParser[S] = N4j => Either[String, S]
 
   object ListParser {
-
-//    def make[S](rawParser: NList => List[Either[String, S]]): ListParser[List[S]] = { li: NList =>
-//      li.li.map {
-//
-//      }
-//
-//      rawParser(li)
-//    } //.sequence[EE, S]
-
     def make[S](rawParser: N4j => Either[String, S]): ListParser[List[S]] = { li: NList =>
       li.li.map(rawParser).sequence[EE, S]
-//      val x: List[Either[String, S]] = li.li.map(rawParser)
-//      val y = x.sequence[EE, S]
-//      y
     }
   }
 
@@ -86,6 +71,10 @@ object NNode {
     case n: NNode => Right(n)
     case bad      => Left(s"Wrong type $bad")
   }
+
+  def get[S](n4j: N4j, np: NodeParser[S]): Either[String, S] =
+    get(n4j) flatMap np
+
 }
 
 sealed trait NNode extends N4j {
@@ -98,12 +87,12 @@ sealed trait NNode extends N4j {
 case class NNodeImpl(node: Node) extends NNode {
   def intValue(key: String)(implicit ts: TypeSystem): Either[String, Int] = N4j.wrap(node.get(key)) match {
     case NInt(v)  => Right(v)
-    case bad      => Left(s"Unexpected type $bad")
+    case bad      => Left(s"Unexpected type $bad when getting $key")
   }
 
   def stringValue(key: String)(implicit ts: TypeSystem): Either[String, String] = N4j.wrap(node.get(key)) match {
     case NString(v)  => Right(v)
-    case bad         => Left(s"Unexpected type $bad")
+    case bad         => Left(s"Unexpected type $bad when getting $key")
   }
 }
 
@@ -141,7 +130,7 @@ case class NMapImpl(map: Map[String, N4j]) extends NMap {
 
   def getNode(str: String): Either[String, NNode] = map.getOrElse(str, NNull) match {
     case n: NNode => Right(n)
-    case bad      => Left(s"Wrong type $bad")
+    case bad      => Left(s"Wrong type $bad when getting $str")
   }
 
   def get(str: String): N4j = map.getOrElse(str, NNull)
@@ -169,6 +158,7 @@ case class NBoolean(v: Boolean) extends N4j
 object Test {
 
   case class FileData(
+    uid: String,
     name: String,
     size: Int
   )
@@ -194,15 +184,40 @@ object Test {
 
   def main(args: Array[String]): Unit = {
 
-    implicit val ts: TypeSystem = ???
+    implicit val ts: TypeSystem = InternalTypeSystem.TYPE_SYSTEM
 
-    val base: NMap = ???
+    val base: NMap =
+      NMapImpl(Map(
+        "wi"      -> NNodeImpl(new InternalNode(0l, List.empty.asJava, Map(
+          "uid" -> (new StringValue("abc") : Value)
+        ).asJava)),
+        "inputs"  -> NList(List(
+          NList(List(
+            NNodeImpl(new InternalNode(0l,
+              List.empty.asJava,
+              Map(
+                "uid" -> (new StringValue("abc") : Value),
+                "key" -> (new StringValue("abc") : Value)
+              ).asJava
+            )),
+            NNodeImpl(new InternalNode(0l,
+              List.empty.asJava,
+              Map(
+                "uid" -> (new StringValue("abc") : Value),
+                "size" -> (new IntegerValue(23) : Value),
+                "name" -> (new StringValue("snerkalr") : Value)
+              ).asJava
+            ))
+          ))
+        ))
+      ))
 
     val fileDataParser: NodeParser[FileData] = { (node: NNode) =>
       for {
         size <- node.intValue("size")
         name <- node.stringValue("name")
-      } yield FileData(name, size)
+        uid <- node.stringValue("uid")
+      } yield FileData(uid, name, size)
     }
 
     val artifactParser: NodeParser[Artifact] = { (node: NNode) =>
@@ -212,32 +227,25 @@ object Test {
       } yield Artifact(uid, key)
     }
 
+    val artifactParser2 = N4j.asN4jParser(artifactParser)
+
     val artiAndFdParser: ListParser[List[(Artifact, Option[FileData])]] = ListParser.make { (ele: N4j) =>
       for {
-        r                     <- NList.two(ele)
-        (artiEle, maybeFdEle) = r
-        artiNode              <- NNode.get(artiEle)
-        arti                  <- artifactParser(artiNode)
-        maybeFd               <- N4j.optional(fileDataParser)(maybeFdEle)
+        artiAndFd             <- NList.two(ele)
+        arti                  <- artifactParser2(artiAndFd._1)
+        maybeFd               <- N4j.optional(fileDataParser)(artiAndFd._2)
       } yield (arti, maybeFd)
     }
 
-    val workflowInstance: MapParser[WorkflowInstance] = { (map: NMap) =>
+    val workflowInstanceParser: MapParser[WorkflowInstance] = { (map: NMap) =>
       for {
         workflowInstanceNode  <- map.getNode("wi")
         workflowInstanceUid   <- workflowInstanceNode.stringValue("uid")
-
-//        artiAndFdNodes        <- map.getList("inputs")
-//        artisFds              <- artiAndFdParser(artiAndFdNodes)
-
-        //artisFds              <- map.getList("inputs") >>= { v => artiAndFdParser(v) }
         artisFds              <- map.getList("inputs", artiAndFdParser)
-//        artisFds              <- map.getList("inputs") >>= (artiAndFdParser)
-
       } yield
         WorkflowInstance(workflowInstanceUid, artisFds.toMap)
     }
-  }
 
-  //  def >>=[B](f: A => F[B])(implicit F: FlatMap[F]): F[B] = F.flatMap(fa)(f)
+    println(workflowInstanceParser(base))
+  }
 }
