@@ -208,6 +208,35 @@ object Test {
                 "name" -> (new StringValue("snerkalr") : Value)
               ).asJava
             ))
+          )),
+
+          NList(List(
+            NNodeImpl(new InternalNode(0l,
+              List.empty.asJava,
+              Map(
+                "uid" -> (new StringValue("abc2") : Value),
+                "key" -> (new StringValue("abc2") : Value)
+              ).asJava
+            )),
+            NNodeImpl(new InternalNode(0l,
+              List.empty.asJava,
+              Map(
+                "uid" -> (new StringValue("abc2") : Value),
+                "size" -> (new IntegerValue(24) : Value),
+                "name" -> (new StringValue("snerkalr2") : Value)
+              ).asJava
+            ))
+          )),
+
+          NList(List(
+            NNodeImpl(new InternalNode(0l,
+              List.empty.asJava,
+              Map(
+                "uid" -> (new StringValue("abc3") : Value),
+                "key" -> (new StringValue("abc3") : Value)
+              ).asJava
+            )),
+            NNull
           ))
         ))
       ))
