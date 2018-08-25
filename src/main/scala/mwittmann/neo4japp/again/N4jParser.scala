@@ -39,7 +39,11 @@ object N4j {
     case bad      => Left(s"Wrong type $bad")
   }
 
-  def wrap(record: Record)(implicit ts: TypeSystem): N4j = {
+//  def wrap(record: Record)(implicit ts: TypeSystem): N4j = {
+//    NMapImpl(record.asMap[N4j](wrap).asScala.toMap)
+//  }
+
+  def wrap(record: Record)(implicit ts: TypeSystem): NMap = {
     NMapImpl(record.asMap[N4j](wrap).asScala.toMap)
   }
 
@@ -81,8 +85,9 @@ sealed trait NNode extends N4j {
   def intValue(key: String)(implicit ts: TypeSystem): Either[String, Int]
 
   def stringValue(key: String)(implicit ts: TypeSystem): Either[String, String]
-}
 
+  def asMap(implicit ts: TypeSystem): Map[String, N4j]
+}
 
 case class NNodeImpl(node: Node) extends NNode {
   def intValue(key: String)(implicit ts: TypeSystem): Either[String, Int] = N4j.wrap(node.get(key)) match {
@@ -94,6 +99,9 @@ case class NNodeImpl(node: Node) extends NNode {
     case NString(v)  => Right(v)
     case bad         => Left(s"Unexpected type $bad when getting $key")
   }
+
+  def asMap(implicit ts: TypeSystem): Map[String, N4j] =
+    node.asMap((v: Value) => v).asScala.mapValues((v: Value) => N4j.wrap(v)).toMap
 }
 
 object NList {
@@ -120,6 +128,8 @@ sealed trait NMap extends N4j {
   def getNode(str: String): Either[String, NNode]
 
   def get(str: String): N4j
+
+  def asMap(implicit ts: TypeSystem): Map[String, N4j]
 }
 
 case class NMapImpl(map: Map[String, N4j]) extends NMap {
@@ -134,6 +144,8 @@ case class NMapImpl(map: Map[String, N4j]) extends NMap {
   }
 
   def get(str: String): N4j = map.getOrElse(str, NNull)
+
+  def asMap(implicit ts: TypeSystem): Map[String, N4j] = map
 }
 
 object NValue {
@@ -150,131 +162,7 @@ object NValue {
 }
 
 sealed trait NValue extends N4j
-case class NInt(v: Int) extends N4j
-case class NFloat(v: Float) extends N4j
-case class NString(v: String) extends N4j
-case class NBoolean(v: Boolean) extends N4j
-
-object Test {
-
-  case class FileData(
-    uid: String,
-    name: String,
-    size: Int
-  )
-
-  case class Artifact(
-    uid: String,
-    key: String
-  )
-
-  case class WorkflowInstance(
-    uid: String,
-    inputs: Map[Artifact, Option[FileData]]
-  )
-
-  /*
-      UNWIND uids AS uid
-      MATCH (wi :WORKFLOW_INSTANCE {uid: $uid}),
-      (wi) -[:INPUT]-> (in :ARTIFACT),
-      OPTIONAL MATCH (in) -[:DESCRIBED_BY]-> (fd: FILE_DATA)
-      RETURN wi, collect([in, fd]) AS inputs
-   */
-
-
-  def main(args: Array[String]): Unit = {
-
-    implicit val ts: TypeSystem = InternalTypeSystem.TYPE_SYSTEM
-
-    val base: NMap =
-      NMapImpl(Map(
-        "wi"      -> NNodeImpl(new InternalNode(0l, List.empty.asJava, Map(
-          "uid" -> (new StringValue("abc") : Value)
-        ).asJava)),
-        "inputs"  -> NList(List(
-          NList(List(
-            NNodeImpl(new InternalNode(0l,
-              List.empty.asJava,
-              Map(
-                "uid" -> (new StringValue("abc") : Value),
-                "key" -> (new StringValue("abc") : Value)
-              ).asJava
-            )),
-            NNodeImpl(new InternalNode(0l,
-              List.empty.asJava,
-              Map(
-                "uid" -> (new StringValue("abc") : Value),
-                "size" -> (new IntegerValue(23) : Value),
-                "name" -> (new StringValue("snerkalr") : Value)
-              ).asJava
-            ))
-          )),
-
-          NList(List(
-            NNodeImpl(new InternalNode(0l,
-              List.empty.asJava,
-              Map(
-                "uid" -> (new StringValue("abc2") : Value),
-                "key" -> (new StringValue("abc2") : Value)
-              ).asJava
-            )),
-            NNodeImpl(new InternalNode(0l,
-              List.empty.asJava,
-              Map(
-                "uid" -> (new StringValue("abc2") : Value),
-                "size" -> (new IntegerValue(24) : Value),
-                "name" -> (new StringValue("snerkalr2") : Value)
-              ).asJava
-            ))
-          )),
-
-          NList(List(
-            NNodeImpl(new InternalNode(0l,
-              List.empty.asJava,
-              Map(
-                "uid" -> (new StringValue("abc3") : Value),
-                "key" -> (new StringValue("abc3") : Value)
-              ).asJava
-            )),
-            NNull
-          ))
-        ))
-      ))
-
-    val fileDataParser: NodeParser[FileData] = { (node: NNode) =>
-      for {
-        size <- node.intValue("size")
-        name <- node.stringValue("name")
-        uid <- node.stringValue("uid")
-      } yield FileData(uid, name, size)
-    }
-
-    val artifactParser: NodeParser[Artifact] = { (node: NNode) =>
-      for {
-        uid <- node.stringValue("uid")
-        key <- node.stringValue("key")
-      } yield Artifact(uid, key)
-    }
-
-    val artifactParser2 = N4j.asN4jParser(artifactParser)
-
-    val artiAndFdParser: ListParser[List[(Artifact, Option[FileData])]] = ListParser.make { (ele: N4j) =>
-      for {
-        artiAndFd             <- NList.two(ele)
-        arti                  <- artifactParser2(artiAndFd._1)
-        maybeFd               <- N4j.optional(fileDataParser)(artiAndFd._2)
-      } yield (arti, maybeFd)
-    }
-
-    val workflowInstanceParser: MapParser[WorkflowInstance] = { (map: NMap) =>
-      for {
-        workflowInstanceNode  <- map.getNode("wi")
-        workflowInstanceUid   <- workflowInstanceNode.stringValue("uid")
-        artisFds              <- map.getList("inputs", artiAndFdParser)
-      } yield
-        WorkflowInstance(workflowInstanceUid, artisFds.toMap)
-    }
-
-    println(workflowInstanceParser(base))
-  }
-}
+case class NInt(v: Int) extends NValue
+case class NFloat(v: Float) extends NValue
+case class NString(v: String) extends NValue
+case class NBoolean(v: Boolean) extends NValue

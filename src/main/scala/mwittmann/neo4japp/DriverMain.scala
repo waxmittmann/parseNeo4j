@@ -9,7 +9,7 @@ object DriverMain {
   val driver = new WrappedDriver("bolt://localhost:7687", "neo4j", "test")
 
   def main(args: Array[String]): Unit = {
-    val r = driver.readTx(tx => IO(tx.run("MATCH (n) RETURN n"))).unsafeRunSync()
+    val r = driver.tx(tx => IO(tx.run("MATCH (n) RETURN n"))).unsafeRunSync()
     r.list().asScala.foreach(println)
   }
 

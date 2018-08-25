@@ -7,8 +7,6 @@ import org.neo4j.driver.v1._
 trait Neo4jDriverClient[T] {
   def tx[S](work: T => IO[S]): IO[S]
 
-  def readTx[S](work: T => IO[S]): IO[S]
-
   def unsafeTx[S](work: T => S): S
 }
 
@@ -37,9 +35,6 @@ class WrappedDriver(url: String, user: String, password: String) extends Neo4jDr
       txResult._2
     }
   } (session => IO(session.close()))
-
-  // Todo: Use readonly transaction
-  override def readTx[S](work: Transaction => IO[S]): IO[S] = tx(work)
 
   def unsafeStatement(s: String, p: Map[String, AnyRef] = Map.empty): StatementResult =
     unsafeTx { _.run(s, p.asJava) }
